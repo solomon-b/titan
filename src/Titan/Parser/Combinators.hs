@@ -4,7 +4,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Fail hiding (fail)
 
-import Data.Functor.Identity
 import Data.Text (Text)
 import qualified Data.Text
 import Data.Void
@@ -26,7 +25,7 @@ type ParseError = Text.Megaparsec.ParseErrorBundle Text Void
 
 runParse :: Parser a -> Text -> Either ParseError a
 runParse (Parser p) =
-  runIdentity . Text.Megaparsec.runParserT p mempty
+  Text.Megaparsec.runParser p mempty
 
 
 instance Semigroup a => Semigroup (Parser a) where
