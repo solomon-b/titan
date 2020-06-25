@@ -1,5 +1,5 @@
 { mkDerivation, async, attoparsec, base, bytestring, containers
-, lens, mtl, stdenv, text, transformers
+, lens, mtl, network, stdenv, text, transformers
 }:
 mkDerivation {
   pname = "titan";
@@ -8,11 +8,11 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    async attoparsec base bytestring containers lens mtl text
+    async attoparsec base bytestring containers lens mtl network text
     transformers
   ];
   executableHaskellDepends = [
-    async attoparsec base bytestring containers lens mtl text
+    async attoparsec base bytestring containers lens mtl network text
     transformers
   ];
   description = "A Gemini Server";
