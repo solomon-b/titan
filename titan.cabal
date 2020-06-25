@@ -18,16 +18,15 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:     Titan.Parser
-                       Titan.Parser.Combinators
-                       Titan.Parser.Token
+                       Titan.Types
   other-modules:       Paths_titan
   hs-source-dirs:      src
   build-depends:       base ^>=4.12.0.0
                      , async
+                     , attoparsec
+                     , bytestring
                      , lens
-                     , megaparsec
                      , mtl
-                     , parsers
                      , transformers
                      , text
                      , containers
@@ -41,10 +40,10 @@ executable titan
   build-depends:       base ^>=4.12.0.0
                      , titan
                      , async
+                     , attoparsec
+                     , bytestring
                      , lens
-                     , megaparsec
                      , mtl
-                     , parsers
                      , transformers
                      , text
                      , containers
