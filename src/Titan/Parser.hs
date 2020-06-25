@@ -14,8 +14,15 @@ import Titan.Types
 
 dot :: Parser ()
 dot = void $ word8 46
+
 colon :: Parser ()
 colon = void $ word8 58
+
+cr :: Parser ()
+cr = void $ word8 13
+
+lf :: Parser ()
+lf = void $ word8 10
 
 fslash :: Parser ()
 fslash = void $ word8 47
@@ -48,3 +55,6 @@ parseUrl = do
   domain <- parseDomain
   path <- parsePath <|> pure []
   pure (domain, path)
+
+parseRequest :: Parser ([ByteString], [ByteString])
+parseRequest = parseUrl <* cr <* lf <* endOfInput

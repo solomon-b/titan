@@ -1,8 +1,30 @@
 module Titan.Types where
 
+import Data.ByteString
 import Data.Text
 
-type Domain = Text
-type Path = [Text]
+data ResponseCode =
+    One   -- Input
+  | Two   -- Success
+  | Three -- Redirect
+  | Four  -- Temporary Failure
+  | Five  -- Permanent Failure
+  | Size  -- Client Certificate Required
+  deriving Show
 
-data Url = Url Domain Path
+data Mime =
+    Application
+  | Audio
+  | Example
+  | Font
+  | Image
+  | Model
+  | Text
+  | Video
+  deriving Show
+
+data Header = Header
+ { _status :: ResponseCode
+ , _meta   :: Text
+ } deriving Show
+
