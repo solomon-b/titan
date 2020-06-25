@@ -27,6 +27,7 @@ library
                      , bytestring
                      , lens
                      , mtl
+                     , network
                      , transformers
                      , text
                      , containers
@@ -44,6 +45,7 @@ executable titan
                      , bytestring
                      , lens
                      , mtl
+                     , network
                      , transformers
                      , text
                      , containers
