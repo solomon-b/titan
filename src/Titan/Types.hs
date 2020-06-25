@@ -28,3 +28,8 @@ data Header = Header
  , _meta   :: Text
  } deriving Show
 
+type Domain = [Text]
+type Path = [Text]
+
+data Url = Url Domain Path
+  deriving Show

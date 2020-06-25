@@ -5,8 +5,14 @@ import qualified Control.Exception as E
 import Control.Monad (unless, forever, void)
 import Data.ByteString
 
+import qualified Data.Text as T (pack)
+import Data.Text.Encoding (encodeUtf8)
+
 import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv, sendAll)
+
+import Data.Attoparsec.ByteString (parseOnly)
+import Titan.Parser
 
 main :: IO ()
 main = runTCPServer Nothing "3000" talk
@@ -14,7 +20,9 @@ main = runTCPServer Nothing "3000" talk
     talk s = do
       msg <- recv s 1024
       unless (Data.ByteString.null msg) $ do
-        sendAll s msg
+        let res = parseOnly (parseUrl) msg
+            res' = encodeUtf8 $ T.pack $ show res
+        sendAll s res'
         talk s
 
 runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a

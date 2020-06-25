@@ -6,11 +6,12 @@ import Control.Monad
 import Data.Attoparsec.ByteString
 import Data.List.NonEmpty
 import Data.ByteString
+import Data.Text (Text)
+import Data.Text.Encoding (decodeUtf8)
 
 import GHC.Word
 
 import Titan.Types
-
 
 dot :: Parser ()
 dot = void $ word8 46
@@ -43,18 +44,23 @@ parseScheme = do
   void $ fslash
   void $ fslash
 
-parsePath :: Parser [ByteString]
-parsePath = fslash *> (fmap pack <$> sepEndBy (many1 alphaNum) fslash)
+parsePath :: Parser [Text]
+parsePath = do
+  fslash
+  path <- sepEndBy (many1 alphaNum) fslash
+  pure $ fmap (decodeUtf8 . pack) path
 
-parseDomain :: Parser [ByteString]
-parseDomain = fmap pack <$> sepBy1 (many1 alphaNum) dot
+parseDomain :: Parser [Text]
+parseDomain = do
+  path <- sepEndBy (many1 alphaNum) dot
+  pure $ fmap (decodeUtf8 . pack) path
 
-parseUrl :: Parser ([ByteString], [ByteString])
+parseUrl :: Parser Url
 parseUrl = do
   parseScheme
   domain <- parseDomain
   path <- parsePath <|> pure []
-  pure (domain, path)
+  pure $ Url domain path
 
-parseRequest :: Parser ([ByteString], [ByteString])
-parseRequest = parseUrl <* cr <* lf <* endOfInput
+--parseRequest :: Parser ([ByteString], [ByteString])
+--parseRequest = parseUrl <* cr <* lf <* endOfInput
