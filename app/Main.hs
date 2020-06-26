@@ -13,16 +13,18 @@ import Network.Socket.ByteString (recv, sendAll)
 
 import Data.Attoparsec.ByteString (parseOnly)
 import Titan.Parser
+import Titan.Response
 
 main :: IO ()
-main = runTCPServer Nothing "3000" talk
+main = runTCPServer Nothing "1965" talk
   where
     talk s = do
       msg <- recv s 1024
       unless (Data.ByteString.null msg) $ do
-        let res = parseOnly (parseUrl) msg
-            res' = encodeUtf8 $ T.pack $ show res
-        sendAll s res'
+        let resp = either (const invalidRequestRespond)
+                          (const testResponse)
+                          (parseOnly parseUrl msg)
+        sendAll s $ encodeUtf8 $ printResponse resp
         talk s
 
 runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a
