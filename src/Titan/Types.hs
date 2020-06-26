@@ -2,7 +2,6 @@ module Titan.Types where
 
 import Data.Text
 
-
 data Mime =
     Application
   | Audio
