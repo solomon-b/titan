@@ -72,13 +72,12 @@ data Options = Options
 makeLenses ''Options
 
 server :: T.Credential -> Z.HostPreference -> NS.ServiceName -> Maybe CertificateStore -> IO ()
-server cred hp port ycs = do
+server cred hp port ycs =
   let ss = Z.makeServerSettings cred ycs
-  Z.serve ss hp port $ \(ctx, caddr) -> do
+  in Z.serve ss hp port $ \(ctx, caddr) -> do
     putStrLn $ show caddr <> " joined."
     consume ctx $ Z.send ctx . B.map toUpper
     putStrLn $ show caddr <> " quit."
-  pure ()
 
 -- | Repeatedly receive data from the given 'T.Context' until exhausted,
 -- performing the given action on each received chunk.
