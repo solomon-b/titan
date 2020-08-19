@@ -39,6 +39,10 @@ data Response a = Response
   } deriving (Show, Functor)
 makeLenses ''Response
 
+invalidRequest :: String -> Response Text
+invalidRequest msg =
+  Response (Header Five (pack msg)) Nothing
+
 showResponse :: Response Text -> Text
 showResponse (Response header mbody) =
   let body = fromMaybe mempty mbody
@@ -60,17 +64,3 @@ type Path = [Text]
 
 data Request = Request Domain Path
   deriving Show
-
-newtype TitanT e m a = TitanT { runT :: State (TitanState e m) a }
-
-newtype ActionT e m a =
-  ActionT { runAM :: ExceptT e (ReaderT Request (StateT (Response Text) m)) a}
-
-type ErrorHandler e m = Maybe (e -> ActionT e m ())
-
-data TitanState e m = TitanState
-  { _routes :: [Request -> m Response]
-  , _handler :: ErrorHandler e m
-  }
-makeLenses ''TitanState
-

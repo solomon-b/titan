@@ -1,10 +1,10 @@
-{-# LANGUAGE EmptyCase #-}
 module Main where
 
 -- TODO: Set Proper Error Messages in Parser
 -- TODO: Two Digit ResponseCodes
 -- TODO: Router
 
+import           Control.Monad.Reader
 import           Control.Lens
 import           Data.Char (toUpper)
 import           Data.Text (Text)
@@ -20,8 +20,9 @@ import           System.Console.GetOpt
 import           System.Environment (getProgName, getArgs)
 
 import           Data.Attoparsec.ByteString (parseOnly)
+import           Data.Proxy
 import           Titan.Parser
-import           Titan.Response
+import           Titan.Router
 import           Titan.Types
 
 data Options = Options
@@ -33,30 +34,54 @@ data Options = Options
   }
 makeLenses ''Options
 
-server :: T.Credential -> Z.HostPreference -> NS.ServiceName -> Maybe CertificateStore -> IO ()
-server cred hp port ycs =
+data ServerContext = ServerContext
+  { _credential  :: T.Credential
+  , _hostPref    :: Z.HostPreference
+  , _serviceName :: NS.ServiceName
+  , _certStore   :: Maybe CertificateStore
+  }
+makeLenses ''ServerContext
+
+runServer :: HasServer layout =>
+  Proxy layout -> Server layout -> ReaderT ServerContext IO ()
+runServer p handler = do
+  ServerContext cred hp port ycs <- ask
   let ss = Z.makeServerSettings cred ycs
-  in Z.serve ss hp port $
+  Z.serve ss hp port $
     \(ctx, caddr) -> do
       putStrLn $ "request received from " <> show caddr
       Z.recv ctx >>= \case
         Nothing -> sendResponse ctx (invalidRequest "Empty Request")
-        Just msg ->
-          case parseOnly parseRequest msg of
+        Just req ->
+          case parseOnly parseRequest req of
             Left err -> sendResponse ctx (invalidRequest err)
-            Right (Url hostname path) -> sendResponse ctx testResponse
+            Right req -> do
+              print req
+              resp <- serve p handler req
+              sendResponse ctx resp
 
 sendResponse :: Z.Context -> Response Text -> IO ()
 sendResponse ctx = Z.send ctx . encodeUtf8 . showResponse
 
 main :: IO ()
-main = Z.withSocketsDo $ do
-  args <- getArgs
+main = Z.withSocketsDo $ makeContext <$> (getArgs >>= parseArgs) >>= runReaderT (runServer (Proxy :: Proxy MyAPI) handleMyAPI)
+
+-------------------
+--- Arg Parsing ---
+-------------------
+
+makeContext :: (NS.HostName, Options) -> ServerContext
+makeContext (hn, opts) =
+  ServerContext (_optServerCredentials opts)
+                (Z.Host hn)
+                (_optServerPort opts)
+                (makeCertificateStore <$> _optCACert opts)
+
+parseArgs :: [String] -> IO (NS.HostName, Options)
+parseArgs args =
   case getOpt RequireOrder options args of
-    (actions, [hostname], _) -> do
-      opts <- foldl (>>=) (return defaultOptions) actions
-      server (_optServerCredentials opts) (Z.Host hostname) (_optServerPort opts)
-             (makeCertificateStore <$> _optCACert opts)
+    (actions, [hostname], _) ->
+      (,) <$> pure hostname <*> (foldl (>>=) (return defaultOptions) actions)
     (_, _, msgs) -> do
       pn <- getProgName
       let header = "Usage: " <> pn <> " [OPTIONS] HOSTNAME"

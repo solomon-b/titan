@@ -19,7 +19,7 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:     Titan.Parser
                        Titan.Types
-                       Titan.Response
+                       Titan.Router
   other-modules:       Paths_titan
   hs-source-dirs:      src
   build-depends:       async
@@ -32,30 +32,47 @@ library
                      , network
                      , network-simple-tls
                      , text
+                     , time
                      , tls
                      , transformers
                      , x509
                      , x509-store
   default-language:    Haskell2010
-  default-extensions:  ScopedTypeVariables InstanceSigs LambdaCase DeriveFunctor DeriveFoldable GeneralizedNewtypeDeriving FlexibleContexts FlexibleInstances LambdaCase OverloadedStrings TemplateHaskell MultiParamTypeClasses
+  default-extensions:  DataKinds
+                     , DeriveFunctor
+                     , DeriveFoldable
+                     , GeneralizedNewtypeDeriving
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , InstanceSigs
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , OverloadedStrings
+                     , PolyKinds
+                     , ScopedTypeVariables
+                     , TemplateHaskell
+                     , TypeApplications
+                     , TypeFamilies
+                     , TypeOperators
 
 executable titan
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base ^>=4.12.0.0
-                     , titan
-                     , async
+  build-depends:       async
                      , attoparsec
+                     , base ^>=4.12.0.0
                      , bytestring
+                     , containers
                      , lens
                      , mtl
                      , network
                      , network-simple-tls
-                     , transformers
                      , text
+                     , time
+                     , titan
                      , tls
-                     , containers
+                     , transformers
                      , x509
                      , x509-store
   hs-source-dirs:      app
