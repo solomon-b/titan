@@ -1,23 +1,14 @@
 {-# LANGUAGE EmptyCase #-}
 module Main where
 
---import Control.Concurrent (forkFinally)
---import qualified Control.Exception as E
---import Control.Monad (unless, forever, void)
---import Data.ByteString
---
---import qualified Data.Text as T (pack)
---import Data.Text.Encoding (encodeUtf8)
---
---import Network.Socket hiding (recv)
---import Network.Socket.ByteString (recv, sendAll)
---
---import Data.Attoparsec.ByteString (parseOnly)
---import Titan.Parser
---import Titan.Response
+-- TODO: Set Proper Error Messages in Parser
+-- TODO: Two Digit ResponseCodes
+-- TODO: Router
 
 import           Control.Lens
 import           Data.Char (toUpper)
+import           Data.Text (Text)
+import           Data.Text.Encoding (encodeUtf8)
 import           Data.X509 (SignedCertificate)
 import           Data.X509.CertificateStore (makeCertificateStore, CertificateStore)
 import           Data.X509.File (readSignedObject)
@@ -28,43 +19,14 @@ import qualified Network.Socket as NS
 import           System.Console.GetOpt
 import           System.Environment (getProgName, getArgs)
 
---main :: IO ()
---main = runTCPServer Nothing "1965" talk
---  where
---    talk s = do
---      msg <- recv s 1024
---      unless (Data.ByteString.null msg) $ do
---        let resp = either (const invalidRequestRespond)
---                          (const testResponse)
---                          (parseOnly parseUrl msg)
---        sendAll s $ encodeUtf8 $ printResponse resp
---        talk s
-
---runTCPServer :: Maybe HostName -> ServiceName -> (Socket -> IO a) -> IO a
---runTCPServer mhost port server = withSocketsDo $ do
---  addr <- resolve
---  E.bracket (open addr) close loop
---  where
---    resolve =
---      let hints = defaultHints { addrFlags = [AI_PASSIVE], addrSocketType = Stream }
---      in Prelude.head <$> getAddrInfo (Just hints) mhost (Just port)
---    open addr = do
---      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
---      setSocketOption sock ReuseAddr 1
---      bind sock (addrAddress addr)
---      let fd = fdSocket sock
---      setCloseOnExecIfNeeded fd
---      listen sock 10
---      pure sock
---    loop sock = forever $ do
---      (conn, peer) <- accept sock
---      Prelude.putStrLn $ "Connection from " ++ show peer
---      void $ forkFinally (server conn) (const $ close conn)
-
-
+import           Data.Attoparsec.ByteString (parseOnly)
+import           Titan.Parser
+import           Titan.Response
+import           Titan.Types
 
 data Options = Options
-  { _optServerCertFile     :: FilePath
+  { _optServerPort         :: NS.ServiceName
+  , _optServerCertFile     :: FilePath
   , _optServerKeyFile      :: FilePath
   , _optServerCredentials  :: T.Credential
   , _optCACert             :: Maybe [SignedCertificate]
@@ -74,35 +36,36 @@ makeLenses ''Options
 server :: T.Credential -> Z.HostPreference -> NS.ServiceName -> Maybe CertificateStore -> IO ()
 server cred hp port ycs =
   let ss = Z.makeServerSettings cred ycs
-  in Z.serve ss hp port $ \(ctx, caddr) -> do
-    putStrLn $ show caddr <> " joined."
-    consume ctx $ Z.send ctx . B.map toUpper
-    putStrLn $ show caddr <> " quit."
+  in Z.serve ss hp port $
+    \(ctx, caddr) -> do
+      putStrLn $ "request received from " <> show caddr
+      Z.recv ctx >>= \case
+        Nothing -> sendResponse ctx (invalidRequest "Empty Request")
+        Just msg ->
+          case parseOnly parseRequest msg of
+            Left err -> sendResponse ctx (invalidRequest err)
+            Right (Url hostname path) -> sendResponse ctx testResponse
 
--- | Repeatedly receive data from the given 'T.Context' until exhausted,
--- performing the given action on each received chunk.
-  where consume :: T.Context -> (B.ByteString -> IO ()) -> IO ()
-        consume ctx k =
-          Z.recv ctx >>= \case
-            Nothing -> return ()
-            Just bs -> k bs >> consume ctx k
+sendResponse :: Z.Context -> Response Text -> IO ()
+sendResponse ctx = Z.send ctx . encodeUtf8 . showResponse
 
 main :: IO ()
 main = Z.withSocketsDo $ do
   args <- getArgs
   case getOpt RequireOrder options args of
-    (actions, [hostname, port], _) -> do
+    (actions, [hostname], _) -> do
       opts <- foldl (>>=) (return defaultOptions) actions
-      server (_optServerCredentials opts) (Z.Host hostname) port
+      server (_optServerCredentials opts) (Z.Host hostname) (_optServerPort opts)
              (makeCertificateStore <$> _optCACert opts)
     (_, _, msgs) -> do
       pn <- getProgName
-      let header = "Usage: " <> pn <> " [OPTIONS] HOSTNAME PORT"
+      let header = "Usage: " <> pn <> " [OPTIONS] HOSTNAME"
       error $ concat msgs ++ usageInfo header options
 
 defaultOptions :: Options
 defaultOptions = Options
-  { _optServerCertFile    = error "Missing optServerCertFile"
+  { _optServerPort        = "1965"
+  , _optServerCertFile    = error "Missing optServerCertFile"
   , _optServerKeyFile     = error "Missing optServerKeyFile"
   , _optServerCredentials = undefined
   , _optCACert = Nothing
@@ -110,7 +73,8 @@ defaultOptions = Options
 
 options :: [OptDescr (Options -> IO Options)]
 options =
-  [ Option [] ["cert"] (ReqArg readServerCert "FILE") "Server Certificate"
+  [ Option [] ["port"] (ReqArg readPort "PORT") "Server Port"
+  , Option [] ["cert"] (ReqArg readServerCert "FILE") "Server Certificate"
   , Option [] ["key"]  (ReqArg readServerCredentials "FILE") "Server private key"
   , Option [] ["cacert"] (OptArg readCACert "FILE")
     "CA certificate to verify a client certificate, if given"
@@ -126,6 +90,9 @@ readServerCredentials arg opt =
     Right c ->
       pure $ opt & optServerCredentials .~ c
                  & optServerKeyFile .~ arg
+
+readPort :: NS.ServiceName -> Options -> IO Options
+readPort arg opt = pure $ opt & optServerPort .~ arg
 
 readCACert :: Maybe FilePath -> Options -> IO Options
 readCACert Nothing    opt = return opt

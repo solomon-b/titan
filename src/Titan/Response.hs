@@ -1,42 +1,21 @@
 module Titan.Response where
 
-import Data.Text
+import           Control.Lens
+import           Data.Maybe (fromMaybe)
+import           Data.Text
 
-data ResponseCode =
-    One   -- Input
-  | Two   -- Success
-  | Three -- Redirect
-  | Four  -- Temporary Failure
-  | Five  -- Permanent Failure
-  | Six   -- Client Certificate Required
+import Titan.Types
 
-instance Show ResponseCode where
-  show = \case
-    One   -> "10"
-    Two   -> "20"
-    Three -> "30"
-    Four  -> "40"
-    Five  -> "50"
-    Six   -> "60"
-data Header = Header
- { _status :: ResponseCode
- , _meta   :: Text
- } deriving Show
+-----------------------
+--- Stock Responses ---
+-----------------------
 
-data Response a = Response
-  { _header :: Header
-  , _body   :: Maybe a
-  } deriving (Show, Functor)
-
-invalidRequestRespond :: Response Text
-invalidRequestRespond =
-  Response (Header Five "text/plain") (Just "BAD REQUEST")
+invalidRequest :: String -> Response Text
+invalidRequest msg =
+  Response (Header Five (pack msg)) Nothing
 
 testResponse :: Response Text
 testResponse =
-  Response (Header Two "text/plain") (Just "Hello Moon!")
+  Response (Header Two "text/gemini") (Just "Hello Moon!")
 
-printResponse :: Response Text -> Text
-printResponse (Response (Header status meta) mbody) =
-  let body = maybe mempty id mbody
-  in (pack . show) status <> " " <> meta <> "\r\n" <> body
+

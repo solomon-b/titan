@@ -4,6 +4,7 @@ import Control.Applicative
 import Control.Monad
 
 import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString.Char8 (endOfLine)
 import Data.List.NonEmpty
 import Data.ByteString
 import Data.Text (Text)
@@ -40,9 +41,9 @@ sepEndBy p sep = sepEndBy1 p sep <|> pure []
 parseScheme :: Parser ()
 parseScheme = do
   void $ string "gemini"
-  void $ colon
-  void $ fslash
-  void $ fslash
+  void colon
+  void fslash
+  void fslash
 
 parsePath :: Parser [Text]
 parsePath = do
@@ -55,12 +56,10 @@ parseDomain = do
   path <- sepEndBy (many1 alphaNum) dot
   pure $ fmap (decodeUtf8 . pack) path
 
-parseUrl :: Parser Url
-parseUrl = do
+parseRequest :: Parser Request
+parseRequest = do
   parseScheme
   domain <- parseDomain
   path <- parsePath <|> pure []
-  pure $ Url domain path
-
---parseRequest :: Parser ([ByteString], [ByteString])
---parseRequest = parseUrl <* cr <* lf <* endOfInput
+  endOfLine
+  pure $ Request domain path
