@@ -5,7 +5,7 @@ import Control.Monad
 
 import Data.Attoparsec.ByteString
 import Data.Attoparsec.ByteString.Char8 (endOfLine)
-import Data.List.NonEmpty
+
 import Data.ByteString
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)

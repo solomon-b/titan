@@ -1,9 +1,6 @@
 module Titan.Types where
 
 import Control.Lens
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Data.Text
 
@@ -31,7 +28,8 @@ data Header = Header
 makeLenses ''Header
 
 printHeader :: Header -> Text
-printHeader (Header status meta) = (pack . show) status <> " " <> meta <> "\r\n"
+printHeader (Header status' meta') =
+  (pack . show) status' <> " " <> meta' <> "\r\n"
 
 data Response a = Response
   { _header :: Header
@@ -44,9 +42,8 @@ invalidRequest msg =
   Response (Header Five (pack msg)) Nothing
 
 showResponse :: Response Text -> Text
-showResponse (Response header mbody) =
-  let body = fromMaybe mempty mbody
-  in printHeader header <> body <> "\r\n"
+showResponse (Response header' mbody) =
+  printHeader header' <> fromMaybe mempty mbody <> "\r\n"
 
 --data Mime =
 --    Application

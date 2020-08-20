@@ -17,7 +17,8 @@ extra-source-files:  CHANGELOG.md
 
 
 library
-  exposed-modules:     Titan.Parser
+  exposed-modules:     Titan.ArgParser
+                       Titan.Parser
                        Titan.Types
                        Titan.Router
   other-modules:       Paths_titan
@@ -54,6 +55,17 @@ library
                      , TypeApplications
                      , TypeFamilies
                      , TypeOperators
+  ghc-options: -Weverything
+               -Wno-missing-exported-signatures 
+               -Wno-missing-import-lists
+               -Wno-missed-specialisations
+               -Wno-all-missed-specialisations
+               -Wno-unsafe
+               -Wno-safe
+               -Wno-missing-local-signatures
+               -Wno-monomorphism-restriction
+               -Wno-implicit-prelude
+               -Wno-missing-export-lists
 
 executable titan
   main-is:             Main.hs
@@ -77,4 +89,30 @@ executable titan
                      , x509-store
   hs-source-dirs:      app
   default-language:    Haskell2010
-  default-extensions:  ScopedTypeVariables InstanceSigs LambdaCase DeriveFunctor DeriveFoldable GeneralizedNewtypeDeriving FlexibleContexts FlexibleInstances LambdaCase OverloadedStrings TemplateHaskell MultiParamTypeClasses
+  default-extensions:  DataKinds
+                     , DeriveFunctor
+                     , DeriveFoldable
+                     , GeneralizedNewtypeDeriving
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , InstanceSigs
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , OverloadedStrings
+                     , PolyKinds
+                     , ScopedTypeVariables
+                     , TemplateHaskell
+                     , TypeApplications
+                     , TypeFamilies
+                     , TypeOperators
+  ghc-options: -Weverything
+               -Wno-missing-exported-signatures 
+               -Wno-missing-import-lists
+               -Wno-missed-specialisations
+               -Wno-all-missed-specialisations
+               -Wno-unsafe
+               -Wno-safe
+               -Wno-missing-local-signatures
+               -Wno-monomorphism-restriction
+               -Wno-implicit-prelude
+               -Wno-missing-export-lists

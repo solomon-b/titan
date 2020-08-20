@@ -1,26 +1,28 @@
 module Titan.Router where
 
-import Control.Applicative
-import Data.Proxy
-import Data.Time
-import Text.Read
-import           GHC.TypeLits
+import           Control.Applicative ((<|>))
+import           Data.Proxy (Proxy(..))
+import           Data.Kind (Type)
 import           Data.Text (Text, pack, unpack)
+import           Data.Time
+import           GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
+import           Text.Read (readMaybe)
+
 import           Titan.Types
 
-data Get (a :: *)
+data Get (a :: Type)
 
 infixr 8 :<|>
 data a :<|> b = a :<|> b
 
 infixr 9 :>
-data (a :: k) :> (b :: *)
+data (a :: k) :> (b :: Type)
 
-data Capture (a :: *)
+data Capture (a :: Type)
 
 type Handler = Request -> Maybe (IO (Response Text))
 
-type family Server layout :: *
+type family Server layout :: Type
 
 type instance Server (Get a) = IO (Response a)
 
@@ -35,7 +37,8 @@ class HasServer layout where
 
 instance Show a => HasServer (Get a) where
   route :: Proxy (Get a) -> Server (Get a) -> Handler
-  route _ handle req = Just $ (fmap . fmap) (pack . show) handle
+  route _ handle (Request _ []) = Just $ (fmap . fmap) (pack . show) handle
+  route _ _ _ = Nothing
 
 instance (HasServer a, HasServer b) => HasServer (a :<|> b) where
   route :: Proxy (a :<|> b) -> Server (a :<|> b) -> Handler
@@ -59,7 +62,7 @@ instance (Read a, HasServer r) => HasServer (Capture a :> r) where
   route _ h (Request hn (x:xs)) = do
     a <- readMaybe . unpack $ x
     route (Proxy :: Proxy r) (h a) (Request hn xs)
-
+  route _ _ _ = Nothing
 serve ::
   HasServer layout =>
   Proxy layout -> Server layout -> Request -> IO (Response Text)
