@@ -1,14 +1,13 @@
 module Titan.Router where
 
-import           Control.Applicative ((<|>))
-import           Data.Proxy (Proxy(..))
-import           Data.Kind (Type)
-import           Data.Text (Text, pack, unpack)
-import           Data.Time
-import           GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
-import           Text.Read (readMaybe)
+import Control.Applicative ((<|>))
+import Data.Proxy (Proxy(..))
+import Data.Kind (Type)
+import Data.Text (Text, pack, unpack)
+import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
+import Text.Read (readMaybe)
 
-import           Titan.Types
+import Titan.Types
 
 data Get (a :: Type)
 
@@ -63,6 +62,7 @@ instance (Read a, HasServer r) => HasServer (Capture a :> r) where
     a <- readMaybe . unpack $ x
     route (Proxy :: Proxy r) (h a) (Request hn xs)
   route _ _ _ = Nothing
+
 serve ::
   HasServer layout =>
   Proxy layout -> Server layout -> Request -> IO (Response Text)
@@ -70,23 +70,3 @@ serve p s req = do
   case route p s req of
     Just resp -> resp
     Nothing -> pure $ invalidRequest "Not Found Error"
-
--------------------
--- Example route --
--------------------
-
-type MyAPI = "date" :> Get Day
-        :<|> "time" :> Capture TimeZone :> Get ZonedTime
-
-handleDate :: IO (Response Day)
-handleDate = do
-  date <- utctDay <$> getCurrentTime
-  pure $ Response (Header Two "text/gemini") (Just date)
-
-handleTime :: TimeZone -> IO (Response ZonedTime)
-handleTime tz = do
-  time <- utcToZonedTime tz <$> getCurrentTime
-  pure $ Response (Header Two "text/gemini") (Just time)
-
-handleMyAPI :: Server MyAPI
-handleMyAPI = handleDate :<|> handleTime
