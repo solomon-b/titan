@@ -29,6 +29,7 @@ library
                      , base ^>=4.12.0.0
                      , bytestring
                      , containers
+                     , http-api-data
                      , lens
                      , mtl
                      , network
@@ -77,6 +78,7 @@ executable titan
                      , base ^>=4.12.0.0
                      , bytestring
                      , containers
+                     , http-api-data
                      , lens
                      , mtl
                      , network
