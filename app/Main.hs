@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Proxy
 import Data.Time
@@ -24,17 +25,17 @@ newtype Timezone = Timezone TimeZone
 instance FromHttpApiData Timezone where
   parseUrlPiece t = Timezone <$> (readTextData t :: Either Text TimeZone)
 
-handleDate :: IO (Response Day)
+handleDate :: ExceptT (ResponseCode, Text) IO (Response Day)
 handleDate = do
-  date <- utctDay <$> getCurrentTime
+  date <- liftIO $ utctDay <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just date)
 
-handleTime :: Timezone -> IO (Response ZonedTime)
+handleTime :: Timezone -> ExceptT (ResponseCode, Text) IO (Response ZonedTime)
 handleTime (Timezone tz) = do
-  time <- utcToZonedTime tz <$> getCurrentTime
+  time <- liftIO $ utcToZonedTime tz <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just time)
 
-handleHello :: Text -> IO (Response Text)
+handleHello :: Text -> ExceptT (ResponseCode, Text) IO (Response Text)
 handleHello name = pure $ Response (Header Two "text/gemini") (Just $ "Hello " <> name)
 
 handleMyAPI :: Server MyAPI

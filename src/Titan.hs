@@ -53,7 +53,7 @@ runServer p handler = do
           case parseOnly parseRequest req of
             Left err -> sendResponse ctx (invalidRequest err)
             Right parsedRequest -> do
-              resp <- serve p handler parsedRequest
+              resp <- serve p handler parsedRequest pure
               sendResponse ctx resp
   where
     sendResponse :: Z.Context -> Response Text -> IO ()
