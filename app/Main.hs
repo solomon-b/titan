@@ -25,17 +25,17 @@ newtype Timezone = Timezone TimeZone
 instance FromHttpApiData Timezone where
   parseUrlPiece t = Timezone <$> (readTextData t :: Either Text TimeZone)
 
-handleDate :: ExceptT (ResponseCode, Text) IO (Response Day)
+handleDate :: Server (Get Day)
 handleDate = do
   date <- liftIO $ utctDay <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just date)
 
-handleTime :: Timezone -> ExceptT (ResponseCode, Text) IO (Response ZonedTime)
+handleTime :: Server (Capture Timezone :> Get ZonedTime)
 handleTime (Timezone tz) = do
   time <- liftIO $ utcToZonedTime tz <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just time)
 
-handleHello :: Text -> ExceptT (ResponseCode, Text) IO (Response Text)
+handleHello :: Server (Capture Text :> Get Text)
 handleHello name = pure $ Response (Header Two "text/gemini") (Just $ "Hello " <> name)
 
 handleMyAPI :: Server MyAPI
