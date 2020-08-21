@@ -41,6 +41,7 @@ invalidRequest :: String -> Response Text
 invalidRequest msg =
   Response (Header Five (pack msg)) Nothing
 
+
 showResponse :: Response Text -> Text
 showResponse (Response header' mbody) =
   printHeader header' <> fromMaybe mempty mbody <> "\r\n"
