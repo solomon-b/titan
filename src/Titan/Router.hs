@@ -4,11 +4,11 @@ import Control.Monad.Except
 
 import Data.Proxy (Proxy(..))
 import Data.Kind (Type)
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 
---import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
+import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 
---import Web.HttpApiData
+import Web.HttpApiData
 
 import Titan.Types
 
@@ -47,9 +47,6 @@ serve ::
   Proxy layout -> Server layout -> Application
 serve p s = toApplication (route p s)
 
---type instance Server ((_ :: Symbol) :> r) = Server r
---type instance Server (Capture a :> r) = a -> Server r
-
 class HasServer api where
   type Server api :: Type
   route :: Proxy api -> Server api -> RoutingApplication
@@ -76,21 +73,25 @@ instance (HasServer a, HasServer b) => HasServer (a :<|> b) where
             \resp2 -> cb (resp1 <> resp2)
         resp -> cb resp
 
---instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
---  route ::
---    Proxy ((s :: Symbol) :> r) ->
---    Server ((s :: Symbol) :> r) ->
---    Application
---  route _ h (Request hn (x:xs))
---    | symbolVal (Proxy :: Proxy s) == unpack x = route (Proxy :: Proxy r) h (Request hn xs)
---  route _ _ _ = Left "Missing Url piece"
---
---instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
---  route ::
---    Proxy (Capture a :> r) ->
---    Server (Capture a :> r) ->
---    Application
---  route _ h (Request hn (x:xs)) = do
---    a <- parseUrlPiece x
---    route (Proxy :: Proxy r) (h a) (Request hn xs)
---  route _ _ _ = Left "Missing Url piece"
+instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
+  type Server ((s :: Symbol) :> r) = Server r
+  route ::
+    Proxy ((s :: Symbol) :> r) ->
+    Server ((s :: Symbol) :> r) ->
+    RoutingApplication
+  route _ h (Request hn (x:xs)) cb
+    | symbolVal (Proxy :: Proxy s) == unpack x =
+      route (Proxy :: Proxy r) h (Request hn xs) cb
+  route _ _ _ cb = cb . RR . Left $ NotFound
+
+instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
+  type Server (Capture a :> r) = a -> Server r
+  route ::
+    Proxy (Capture a :> r) ->
+    Server (Capture a :> r) ->
+    RoutingApplication
+  route _ h (Request hn (x:xs)) cb =
+    case parseUrlPiece x of
+      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs) cb
+      Left _ -> cb . RR . Left $ NotFound
+  route _ _ _ cb = cb . RR . Left $ NotFound
