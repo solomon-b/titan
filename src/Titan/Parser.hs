@@ -20,6 +20,15 @@ dot = void $ word8 46
 colon :: Parser ()
 colon = void $ word8 58
 
+equal :: Parser ()
+equal = void $ word8 61
+
+ampersand :: Parser ()
+ampersand = void $ word8 38
+
+qmark :: Parser ()
+qmark = void $ word8 63
+
 cr :: Parser ()
 cr = void $ word8 13
 
@@ -31,6 +40,9 @@ fslash = void $ word8 47
 
 alphaNum :: Parser Word8
 alphaNum = satisfy $ inClass "a-zA-Z0-9"
+
+text :: Parser Text
+text = decodeUtf8 . pack <$> many1 alphaNum
 
 sepEndBy1 :: Alternative m => m a -> m sep -> m [a]
 sepEndBy1 p sep = (:) <$> p <*> ((sep *> sepEndBy p sep) <|> pure [])
@@ -46,20 +58,28 @@ parseScheme = do
   void fslash
 
 parsePath :: Parser [Text]
-parsePath = do
-  fslash
-  path <- sepEndBy (many1 alphaNum) fslash
-  pure $ fmap (decodeUtf8 . pack) path
+parsePath = fslash *> sepEndBy text fslash
+
+parseQueryParam :: Parser (Text, Text)
+parseQueryParam = do
+  key <- text
+  equal
+  val <- text
+  pure (key, val)
+
+parseQueryParams :: Parser QueryParams
+parseQueryParams = do
+  qmark
+  sepBy parseQueryParam ampersand
 
 parseDomain :: Parser [Text]
-parseDomain = do
-  path <- sepEndBy (many1 alphaNum) dot
-  pure $ fmap (decodeUtf8 . pack) path
+parseDomain = sepEndBy text dot
 
 parseRequest :: Parser Request
 parseRequest = do
   parseScheme
   domain <- parseDomain
-  path <- parsePath <|> pure []
+  path <- option [] parsePath
+  params <- option [] parseQueryParams
   endOfLine
-  pure $ Request domain path
+  pure $ Request domain path params

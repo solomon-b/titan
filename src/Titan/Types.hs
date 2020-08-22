@@ -59,6 +59,7 @@ showResponse (Response header' mbody) =
 
 type Domain = [Text]
 type Path = [Text]
+type QueryParams = [(Text, Text)]
 
-data Request = Request Domain Path
+data Request = Request Domain Path QueryParams
   deriving Show
