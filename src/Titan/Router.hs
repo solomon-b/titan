@@ -24,6 +24,8 @@ data Capture (a :: Type)
 
 data QueryParam (sym :: Symbol) (a :: Type)
 
+data QueryFlag (sym :: Symbol)
+
 data RouteMismatch = NotFound
   deriving (Eq, Show)
 
@@ -51,12 +53,14 @@ serve p s = toApplication (route p s)
 
 class HasServer api where
   type Server api :: Type
+
   route :: Proxy api -> Server api -> RoutingApplication
 
 instance Show a => HasServer (Get a) where
   type Server (Get a) = ExceptT (ResponseCode, Text) IO (Response a)
+
   route :: Proxy (Get a) -> Server (Get a) -> RoutingApplication
-  route _ handler (Request _ [] qp) cb = do
+  route _ handler (Request _ [] _ _) cb = do
     e <- runExceptT handler
     cb . RR . Right $
       case e of
@@ -66,6 +70,7 @@ instance Show a => HasServer (Get a) where
 
 instance (HasServer a, HasServer b) => HasServer (a :<|> b) where
   type Server (a :<|> b) = Server a :<|> Server b
+
   route :: Proxy (a :<|> b) -> Server (a :<|> b) -> RoutingApplication
   route _ (h1 :<|> h2) req cb =
     route (Proxy :: Proxy a) h1 req $
@@ -77,36 +82,51 @@ instance (HasServer a, HasServer b) => HasServer (a :<|> b) where
 
 instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
   type Server ((s :: Symbol) :> r) = Server r
+
   route ::
     Proxy ((s :: Symbol) :> r) ->
     Server ((s :: Symbol) :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs) qp) cb
+  route _ h (Request hn (x:xs) qp qf) cb
     | symbolVal (Proxy :: Proxy s) == unpack x =
-      route (Proxy :: Proxy r) h (Request hn xs qp) cb
+      route (Proxy :: Proxy r) h (Request hn xs qp qf) cb
   route _ _ _ cb = cb . RR . Left $ NotFound
 
 instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
   type Server (Capture a :> r) = a -> Server r
+
   route ::
     Proxy (Capture a :> r) ->
     Server (Capture a :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs) qp) cb =
+  route _ h (Request hn (x:xs) qp qf) cb =
     case parseUrlPiece x of
-      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs qp) cb
+      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs qp qf) cb
       Left _ -> cb . RR . Left $ NotFound
   route _ _ _ cb = cb . RR . Left $ NotFound
 
-instance (KnownSymbol sym, Show a, FromHttpApiData a, HasServer r) => HasServer (QueryParam sym a :> r) where
+instance (KnownSymbol sym, FromHttpApiData a, HasServer r) => HasServer (QueryParam sym a :> r) where
   type Server (QueryParam sym a :> r) = Maybe a -> Server r
+
   route ::
     Proxy (QueryParam sym a :> r) ->
     Server (QueryParam sym a :> r) ->
     RoutingApplication
   route _ h req cb =
-    let parseParam = either (const Nothing) Just . parseQueryParam
+    let parseParam = (either (const Nothing) Just . parseQueryParam)
         key = pack $ symbolVal (Proxy :: Proxy sym)
         val = lookup key (_qp req) >>= parseParam
     in route (Proxy :: Proxy r) (h val) req cb
+
+instance (KnownSymbol sym, HasServer r) => HasServer (QueryFlag sym :> r) where
+  type Server (QueryFlag sym :> r) = Bool -> Server r
+
+  route ::
+    Proxy (QueryFlag sym :> r) ->
+    Server (QueryFlag sym :> r) ->
+    RoutingApplication
+  route _ h req cb =
+    let key = pack $ symbolVal (Proxy :: Proxy sym)
+        flag = key `elem` (_qf req)
+    in route (Proxy :: Proxy r) (h flag) req cb
 

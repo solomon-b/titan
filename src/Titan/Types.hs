@@ -60,9 +60,11 @@ showResponse (Response header' mbody) =
 type Domain = [Text]
 type Path = [Text]
 type QueryParams = [(Text, Text)]
+type QueryFlags = [Text]
 
 data Request = Request
   { _request :: Domain
   , _path :: Path
   , _qp :: QueryParams
+  , _qf :: QueryFlags
   } deriving Show

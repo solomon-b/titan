@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Titan.Parser where
 
 import Control.Applicative
@@ -7,6 +8,7 @@ import Data.Attoparsec.ByteString
 import Data.Attoparsec.ByteString.Char8 (endOfLine)
 
 import Data.ByteString
+import Data.Either (partitionEithers)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 
@@ -61,16 +63,15 @@ parsePath :: Parser [Text]
 parsePath = fslash *> sepEndBy text fslash
 
 parseQueryParam :: Parser (Text, Text)
-parseQueryParam = do
-  key <- text
-  equal
-  val <- text
-  pure (key, val)
+parseQueryParam = (,) <$> text <* equal <*> text
 
-parseQueryParams :: Parser QueryParams
-parseQueryParams = do
-  qmark
-  sepBy parseQueryParam ampersand
+parseQueryFlag :: Parser Text
+parseQueryFlag = text
+
+parseQueryPFs :: Parser (QueryFlags, QueryParams)
+parseQueryPFs = qmark *> (partitionEithers <$> sepBy p ampersand)
+  where
+    p = (Left <$> parseQueryFlag) <|> (Right <$> parseQueryParam)
 
 parseDomain :: Parser [Text]
 parseDomain = sepEndBy text dot
@@ -80,6 +81,6 @@ parseRequest = do
   parseScheme
   domain <- parseDomain
   path <- option [] parsePath
-  params <- option [] parseQueryParams
+  (flags, params) <- option mempty parseQueryPFs
   endOfLine
-  pure $ Request domain path params
+  pure $ Request domain path params flags

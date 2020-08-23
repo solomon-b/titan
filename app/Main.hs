@@ -18,6 +18,7 @@ import Titan
 type MyAPI = "date" :> Get Day
         :<|> "time" :> Capture Timezone :> Get ZonedTime
         :<|> "add" :> QueryParam "x" Int :> QueryParam "y" Int :> Get Int
+        :<|> "books" :> QueryFlag "published" :> Get [Text]
 
 newtype Timezone = Timezone TimeZone
   deriving Read
@@ -42,8 +43,20 @@ handleAdd Nothing Nothing = throwError $ (Five, "Bad values for 'x' and 'y'")
 handleAdd Nothing _ = throwError $ (Five, "Bad values for 'x'")
 handleAdd _ Nothing = throwError $ (Five, "Bad values for 'y'")
 
+handleBook :: Server (QueryFlag "published" :> Get [Text])
+handleBook published =
+  let books = [ ("One Flew Over the Cuckcoo's Next", True)
+              , ("The Autobiography of Alice B. Toklas", True)
+              , ("The Dead Sea Scrolls", False)
+              , ("The Light House", False)]
+  in if published
+     then pure $ Response (Header Two "text/gemini") $
+          Just $ fmap fst $ filter (\p -> not $ snd p) books
+     else pure $ Response (Header Two "text/gemini") $
+          Just $ fmap fst books
+
 handleMyAPI :: Server MyAPI
-handleMyAPI = handleDate :<|> handleTime :<|> handleAdd
+handleMyAPI = handleDate :<|> handleTime :<|> handleAdd :<|> handleBook
 
 ------------
 --- Main ---
