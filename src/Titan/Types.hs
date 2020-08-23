@@ -61,5 +61,8 @@ type Domain = [Text]
 type Path = [Text]
 type QueryParams = [(Text, Text)]
 
-data Request = Request Domain Path QueryParams
-  deriving Show
+data Request = Request
+  { _request :: Domain
+  , _path :: Path
+  , _qp :: QueryParams
+  } deriving Show

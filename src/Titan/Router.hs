@@ -22,6 +22,8 @@ data (a :: k) :> (b :: Type)
 
 data Capture (a :: Type)
 
+data QueryParam (sym :: Symbol) (a :: Type)
+
 data RouteMismatch = NotFound
   deriving (Eq, Show)
 
@@ -54,7 +56,7 @@ class HasServer api where
 instance Show a => HasServer (Get a) where
   type Server (Get a) = ExceptT (ResponseCode, Text) IO (Response a)
   route :: Proxy (Get a) -> Server (Get a) -> RoutingApplication
-  route _ handler (Request _ []) cb = do
+  route _ handler (Request _ [] qp) cb = do
     e <- runExceptT handler
     cb . RR . Right $
       case e of
@@ -79,9 +81,9 @@ instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
     Proxy ((s :: Symbol) :> r) ->
     Server ((s :: Symbol) :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs)) cb
+  route _ h (Request hn (x:xs) qp) cb
     | symbolVal (Proxy :: Proxy s) == unpack x =
-      route (Proxy :: Proxy r) h (Request hn xs) cb
+      route (Proxy :: Proxy r) h (Request hn xs qp) cb
   route _ _ _ cb = cb . RR . Left $ NotFound
 
 instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
@@ -90,8 +92,21 @@ instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
     Proxy (Capture a :> r) ->
     Server (Capture a :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs)) cb =
+  route _ h (Request hn (x:xs) qp) cb =
     case parseUrlPiece x of
-      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs) cb
+      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs qp) cb
       Left _ -> cb . RR . Left $ NotFound
   route _ _ _ cb = cb . RR . Left $ NotFound
+
+instance (KnownSymbol sym, Show a, FromHttpApiData a, HasServer r) => HasServer (QueryParam sym a :> r) where
+  type Server (QueryParam sym a :> r) = Maybe a -> Server r
+  route ::
+    Proxy (QueryParam sym a :> r) ->
+    Server (QueryParam sym a :> r) ->
+    RoutingApplication
+  route _ h req cb =
+    let parseParam = either (const Nothing) Just . parseQueryParam
+        key = pack $ symbolVal (Proxy :: Proxy sym)
+        val = lookup key (_qp req) >>= parseParam
+    in route (Proxy :: Proxy r) (h val) req cb
+

@@ -17,7 +17,7 @@ import Titan
 
 type MyAPI = "date" :> Get Day
         :<|> "time" :> Capture Timezone :> Get ZonedTime
-        :<|> "hello" :> Capture Text :> Get Text
+        :<|> "add" :> QueryParam "x" Int :> QueryParam "y" Int :> Get Int
 
 newtype Timezone = Timezone TimeZone
   deriving Read
@@ -35,11 +35,15 @@ handleTime (Timezone tz) = do
   time <- liftIO $ utcToZonedTime tz <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just time)
 
-handleHello :: Server (Capture Text :> Get Text)
-handleHello name = pure $ Response (Header Two "text/gemini") (Just $ "Hello " <> name)
+handleAdd :: Server (QueryParam "x" Int :> QueryParam "y" Int :> Get Int)
+handleAdd (Just x) (Just y) =
+  pure $ Response (Header Two "text/gemini") (Just (x + y))
+handleAdd Nothing Nothing = throwError $ (Five, "Bad values for 'x' and 'y'")
+handleAdd Nothing _ = throwError $ (Five, "Bad values for 'x'")
+handleAdd _ Nothing = throwError $ (Five, "Bad values for 'y'")
 
 handleMyAPI :: Server MyAPI
-handleMyAPI = handleDate :<|> handleTime :<|> handleHello
+handleMyAPI = handleDate :<|> handleTime :<|> handleAdd
 
 ------------
 --- Main ---
