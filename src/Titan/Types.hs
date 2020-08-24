@@ -68,3 +68,4 @@ data Request = Request
   , _qp :: QueryParams
   , _qf :: QueryFlags
   } deriving Show
+makeLenses ''Request

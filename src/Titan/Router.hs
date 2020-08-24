@@ -1,6 +1,7 @@
 module Titan.Router where
 
 import Control.Monad.Except
+import Control.Lens
 
 import Data.Proxy (Proxy(..))
 import Data.Kind (Type)
@@ -39,7 +40,7 @@ type RoutingApplication =
 type Application = Request -> (Response Text -> IO (Response Text)) -> IO (Response Text)
 
 toApplication :: RoutingApplication -> Application
-toApplication ra request cb = ra request (routingRespond . routeResult)
+toApplication ra req cb = ra req (routingRespond . routeResult)
   where
     routingRespond :: Either RouteMismatch (Response Text) -> IO (Response Text)
     routingRespond (Left NotFound) =
@@ -87,9 +88,9 @@ instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
     Proxy ((s :: Symbol) :> r) ->
     Server ((s :: Symbol) :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs) qp qf) cb
+  route _ h req@(Request _ (x:_) _ _) cb
     | symbolVal (Proxy :: Proxy s) == unpack x =
-      route (Proxy :: Proxy r) h (Request hn xs qp qf) cb
+      route (Proxy :: Proxy r) h (req & over path tail) cb
   route _ _ _ cb = cb . RR . Left $ NotFound
 
 instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
@@ -99,9 +100,9 @@ instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
     Proxy (Capture a :> r) ->
     Server (Capture a :> r) ->
     RoutingApplication
-  route _ h (Request hn (x:xs) qp qf) cb =
+  route _ h req@(Request _ (x:_) _ _) cb =
     case parseUrlPiece x of
-      Right a -> route (Proxy :: Proxy r) (h a) (Request hn xs qp qf) cb
+      Right a -> route (Proxy :: Proxy r) (h a) (req & over path tail) cb
       Left _ -> cb . RR . Left $ NotFound
   route _ _ _ cb = cb . RR . Left $ NotFound
 
@@ -127,6 +128,6 @@ instance (KnownSymbol sym, HasServer r) => HasServer (QueryFlag sym :> r) where
     RoutingApplication
   route _ h req cb =
     let key = pack $ symbolVal (Proxy :: Proxy sym)
-        flag = key `elem` (_qf req)
+        flag = elemOf (qf . folded) key req
     in route (Proxy :: Proxy r) (h flag) req cb
 
