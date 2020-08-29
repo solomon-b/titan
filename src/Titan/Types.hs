@@ -30,7 +30,6 @@ makeLenses ''Header
 printHeader :: Header -> Text
 printHeader (Header status' meta') =
   (pack . show) status' <> " " <> meta' <> "\r\n"
-
 data Response a = Response
   { _header :: Header
   , _body   :: Maybe a
@@ -41,12 +40,11 @@ invalidRequest :: String -> Response Text
 invalidRequest msg =
   Response (Header Five (pack msg)) Nothing
 
-
 showResponse :: Response Text -> Text
 showResponse (Response header' mbody) =
   printHeader header' <> fromMaybe mempty mbody <> "\r\n"
 
---data Mime =
+data Mime = PlainText | Gemini
 --    Application
 --  | Audio
 --  | Example

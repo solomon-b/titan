@@ -4,7 +4,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Proxy
 import Data.Time
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import System.Environment (getArgs)
 import qualified Network.Simple.TCP.TLS as Z
 import Web.HttpApiData
@@ -23,27 +23,33 @@ type MyAPI = "date" :> Get Day
 newtype Timezone = Timezone TimeZone
   deriving Read
 
+instance ToResponse Day mime where
+  toResponse _ a = pack $ show a
+
+instance ToResponse ZonedTime mime where
+  toResponse _ a = pack $ show a
+
 instance FromHttpApiData Timezone where
   parseUrlPiece t = Timezone <$> (readTextData t :: Either Text TimeZone)
 
-handleDate :: Server (Get Day)
+handleDate :: Server mime (Get Day)
 handleDate = do
   date <- liftIO $ utctDay <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just date)
 
-handleTime :: Server (Capture Timezone :> Get ZonedTime)
+handleTime :: Server mime (Capture Timezone :> Get ZonedTime)
 handleTime (Timezone tz) = do
   time <- liftIO $ utcToZonedTime tz <$> getCurrentTime
   pure $ Response (Header Two "text/gemini") (Just time)
 
-handleAdd :: Server (QueryParam "x" Int :> QueryParam "y" Int :> Get Int)
+handleAdd :: Server mime (QueryParam "x" Int :> QueryParam "y" Int :> Get Int)
 handleAdd (Just x) (Just y) =
   pure $ Response (Header Two "text/gemini") (Just (x + y))
 handleAdd Nothing Nothing = throwError $ (Five, "Bad values for 'x' and 'y'")
 handleAdd Nothing _ = throwError $ (Five, "Bad values for 'x'")
 handleAdd _ Nothing = throwError $ (Five, "Bad values for 'y'")
 
-handleBook :: Server (QueryFlag "published" :> Get [Text])
+handleBook :: Server mime (QueryFlag "published" :> Get [Text])
 handleBook published =
   let books = [ ("One Flew Over the Cuckcoo's Next", True)
               , ("The Autobiography of Alice B. Toklas", True)
@@ -55,7 +61,7 @@ handleBook published =
      else pure $ Response (Header Two "text/gemini") $
           Just $ fmap fst books
 
-handleMyAPI :: Server MyAPI
+handleMyAPI :: Server mime MyAPI
 handleMyAPI = handleDate :<|> handleTime :<|> handleAdd :<|> handleBook
 
 ------------

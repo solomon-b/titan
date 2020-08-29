@@ -80,7 +80,7 @@ parseRequest :: Parser Request
 parseRequest = do
   parseScheme
   domain <- parseDomain
-  path <- option [] parsePath
+  path' <- option [] parsePath
   (flags, params) <- option mempty parseQueryPFs
   endOfLine
-  pure $ Request domain path params flags
+  pure $ Request domain path' params flags

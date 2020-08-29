@@ -20,6 +20,7 @@ library
   exposed-modules:     Titan
                        Titan.ArgParser
                        Titan.Parser
+                       Titan.ToResponse
                        Titan.Types
                        Titan.Router
   other-modules:       Paths_titan
