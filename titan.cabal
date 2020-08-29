@@ -45,6 +45,7 @@ library
   default-extensions:  DataKinds
                      , DeriveFunctor
                      , DeriveFoldable
+                     , GADTs
                      , GeneralizedNewtypeDeriving
                      , FlexibleContexts
                      , FlexibleInstances

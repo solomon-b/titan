@@ -41,8 +41,8 @@ makeContext (hn, opts) =
                 (_optServerPort opts)
                 (makeCertificateStore <$> _optCACert opts)
 
-runServer :: HasServer 'PlainText layout =>
-  Proxy layout -> Server 'PlainText layout -> ReaderT ServerContext IO ()
+runServer :: HasServer layout =>
+  Proxy layout -> Server layout -> ReaderT ServerContext IO ()
 runServer p handler = do
   ServerContext cred hp port ycs <- ask
   let ss = Z.makeServerSettings cred ycs
@@ -55,7 +55,7 @@ runServer p handler = do
           case parseOnly parseRequest req of
             Left err -> sendResponse ctx (invalidRequest err)
             Right parsedRequest -> do
-              resp <- serve (Proxy :: Proxy 'PlainText) p handler parsedRequest pure
+              resp <- serve p handler parsedRequest pure
               sendResponse ctx resp
   where
     sendResponse :: Z.Context -> Response Text -> IO ()

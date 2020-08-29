@@ -49,92 +49,87 @@ toApplication ra req cb = ra req (routingRespond . routeResult)
     routingRespond (Right resp) = cb resp
 
 serve ::
-  HasServer mime layout =>
-  Proxy mime -> Proxy layout -> Server mime layout -> Application
-serve p p' s = toApplication (route p p' s)
+  HasServer layout => Proxy layout -> Server layout -> Application
+serve p s = toApplication (route p s)
 
 
-class HasServer mime api where
-  type Server mime api :: Type
+class HasServer api where
+  type Server api :: Type
 
-  route :: Proxy mime -> Proxy api -> Server mime api -> RoutingApplication
+  route :: Proxy api -> Server api -> RoutingApplication
 
-instance ToResponse a mime => HasServer mime (Get a) where
-  type Server mime (Get a) = ExceptT (ResponseCode, Text) IO (Response a)
+instance ToResponse a => HasServer (Get a) where
+  type Server (Get a) = ExceptT (ResponseCode, Text) IO (Response a)
 
-  route :: Proxy mime -> Proxy (Get a) -> Server mime (Get a) -> RoutingApplication
-  route p _ handler (Request _ [] _ _) cb = do
+  route :: Proxy (Get a) -> Server (Get a) -> RoutingApplication
+  route _ handler (Request _ [] _ _) cb = do
     e <- runExceptT handler
     cb . RR . Right $
       case e of
-        Right resp -> toResponse p <$> resp
+        Right resp -> toResponse <$> resp
         Left (code, msg) -> Response (Header code msg) Nothing
-  route _ _ _ _ cb = cb . RR . Left $ NotFound
+  route _ _ _ cb = cb . RR . Left $ NotFound
 
-instance (HasServer mime a, HasServer mime b) =>
-         HasServer mime (a :<|> b) where
-  type Server mime (a :<|> b) = Server mime a :<|> Server mime b
+instance (HasServer a, HasServer b) =>
+         HasServer (a :<|> b) where
+  type Server (a :<|> b) = Server a :<|> Server b
 
-  route :: Proxy mime -> Proxy (a :<|> b) -> Server mime (a :<|> b) -> RoutingApplication
-  route p _ (h1 :<|> h2) req cb =
-    route p (Proxy :: Proxy a) h1 req $
+  route :: Proxy (a :<|> b) -> Server (a :<|> b) -> RoutingApplication
+  route _ (h1 :<|> h2) req cb =
+    route (Proxy :: Proxy a) h1 req $
       \case
         resp1@(RR (Left _)) ->
-          route p (Proxy :: Proxy b) h2 req $
+          route (Proxy :: Proxy b) h2 req $
             \resp2 -> cb (resp1 <> resp2)
         resp -> cb resp
 
-instance (KnownSymbol s, HasServer mime r) => HasServer mime ((s :: Symbol) :> r) where
-  type Server mime ((s :: Symbol) :> r) = Server mime r
+instance (KnownSymbol s, HasServer r) => HasServer ((s :: Symbol) :> r) where
+  type Server ((s :: Symbol) :> r) = Server r
 
   route ::
-    Proxy mime ->
     Proxy ((s :: Symbol) :> r) ->
-    Server mime ((s :: Symbol) :> r) ->
+    Server ((s :: Symbol) :> r) ->
     RoutingApplication
-  route p _ h req@(Request _ (x:_) _ _) cb
+  route _ h req@(Request _ (x:_) _ _) cb
     | symbolVal (Proxy :: Proxy s) == unpack x =
-      route p (Proxy :: Proxy r) h (req & over path tail) cb
-  route _ _ _ _ cb = cb . RR . Left $ NotFound
+      route (Proxy :: Proxy r) h (req & over path tail) cb
+  route _ _ _ cb = cb . RR . Left $ NotFound
 
-instance (FromHttpApiData a, HasServer mime r) => HasServer mime (Capture a :> r) where
-  type Server mime (Capture a :> r) = a -> Server mime r
+instance (FromHttpApiData a, HasServer r) => HasServer (Capture a :> r) where
+  type Server (Capture a :> r) = a -> Server r
 
   route ::
-    Proxy mime ->
     Proxy (Capture a :> r) ->
-    Server mime (Capture a :> r) ->
+    Server (Capture a :> r) ->
     RoutingApplication
-  route p _ h req@(Request _ (x:_) _ _) cb =
+  route _ h req@(Request _ (x:_) _ _) cb =
     case parseUrlPiece x of
-      Right a -> route p (Proxy :: Proxy r) (h a) (req & over path tail) cb
+      Right a -> route (Proxy :: Proxy r) (h a) (req & over path tail) cb
       Left _ -> cb . RR . Left $ NotFound
-  route _ _ _ _ cb = cb . RR . Left $ NotFound
+  route _ _ _ cb = cb . RR . Left $ NotFound
 
-instance (KnownSymbol sym, FromHttpApiData a, HasServer mime r) =>
-  HasServer mime (QueryParam sym a :> r) where
-  type Server mime (QueryParam sym a :> r) = Maybe a -> Server mime r
+instance (KnownSymbol sym, FromHttpApiData a, HasServer r) =>
+  HasServer (QueryParam sym a :> r) where
+  type Server (QueryParam sym a :> r) = Maybe a -> Server r
 
   route ::
-    Proxy mime ->
     Proxy (QueryParam sym a :> r) ->
-    Server mime (QueryParam sym a :> r) ->
+    Server (QueryParam sym a :> r) ->
     RoutingApplication
-  route p _ h req cb =
+  route _ h req cb =
     let parseParam = (either (const Nothing) Just . parseQueryParam)
         key = pack $ symbolVal (Proxy :: Proxy sym)
         val = lookup key (_qp req) >>= parseParam
-    in route p (Proxy :: Proxy r) (h val) req cb
+    in route (Proxy :: Proxy r) (h val) req cb
 
-instance (KnownSymbol sym, HasServer mime r) => HasServer mime (QueryFlag sym :> r) where
-  type Server mime (QueryFlag sym :> r) = Bool -> Server mime r
+instance (KnownSymbol sym, HasServer r) => HasServer (QueryFlag sym :> r) where
+  type Server (QueryFlag sym :> r) = Bool -> Server r
 
   route ::
-    Proxy mime ->
     Proxy (QueryFlag sym :> r) ->
-    Server mime (QueryFlag sym :> r) ->
+    Server (QueryFlag sym :> r) ->
     RoutingApplication
-  route p _ h req cb =
+  route _ h req cb =
     let key = pack $ symbolVal (Proxy :: Proxy sym)
         flag = elemOf (qf . folded) key req
-    in route p (Proxy :: Proxy r) (h flag) req cb
+    in route (Proxy :: Proxy r) (h flag) req cb

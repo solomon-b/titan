@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Titan.Types where
 
 import Control.Lens
@@ -30,6 +31,7 @@ makeLenses ''Header
 printHeader :: Header -> Text
 printHeader (Header status' meta') =
   (pack . show) status' <> " " <> meta' <> "\r\n"
+
 data Response a = Response
   { _header :: Header
   , _body   :: Maybe a
