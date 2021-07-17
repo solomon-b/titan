@@ -34,8 +34,8 @@ parseArgs args =
 defaultOptions :: Options
 defaultOptions = Options
   { _optServerPort        = "1965"
-  , _optServerCertFile    = "./certs/ca.example.com.crt" -- error "Missing optServerCertFile"
-  , _optServerKeyFile     = "./certs/ca.example.com.key" -- error "Missing optServerKeyFile"
+  , _optServerCertFile    = error "Missing optServerCertFile"
+  , _optServerKeyFile     = error "Missing optServerKeyFile"
   , _optServerCredentials = undefined
   , _optCACert = Nothing
   }
