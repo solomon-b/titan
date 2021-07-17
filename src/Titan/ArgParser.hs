@@ -16,14 +16,16 @@ data Options = Options
   , _optServerCredentials  :: T.Credential
   , _optCACert             :: Maybe [SignedCertificate]
   }
+  deriving Show
 
 makeLenses ''Options
 
 parseArgs :: [String] -> IO (NS.HostName, Options)
 parseArgs args =
   case getOpt RequireOrder options args of
-    (actions, [hostname], _) ->
-      (,) <$> pure hostname <*> (foldl (>>=) (return defaultOptions) actions)
+    (actions, [hostname], _) -> do
+      opts <- foldl (>>=) (return defaultOptions) actions
+      pure (hostname, opts)
     (_, _, msgs) -> do
       pn <- getProgName
       let header = "Usage: " <> pn <> " [OPTIONS] HOSTNAME"
@@ -32,8 +34,8 @@ parseArgs args =
 defaultOptions :: Options
 defaultOptions = Options
   { _optServerPort        = "1965"
-  , _optServerCertFile    = error "Missing optServerCertFile"
-  , _optServerKeyFile     = error "Missing optServerKeyFile"
+  , _optServerCertFile    = "./certs/ca.example.com.crt" -- error "Missing optServerCertFile"
+  , _optServerKeyFile     = "./certs/ca.example.com.key" -- error "Missing optServerKeyFile"
   , _optServerCredentials = undefined
   , _optCACert = Nothing
   }
