@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Titan.Parser where
 
-import Control.Applicative ( Alternative((<|>)) )
+import Control.Applicative ( Alternative((<|>)))
 import Control.Monad ( void )
 import Data.Attoparsec.ByteString
     ( inClass,
@@ -10,8 +10,9 @@ import Data.Attoparsec.ByteString
       word8,
       many1,
       option,
-      sepBy,
+      sepBy',
       try,
+      endOfInput,
       Parser )
 import Data.Attoparsec.ByteString.Char8 (endOfLine)
 import Data.ByteString ( pack )
@@ -31,10 +32,10 @@ equal :: Parser ()
 equal = void $ word8 61
 
 ampersand :: Parser ()
-ampersand = void $ word8 38
+ampersand = void $ word8 38 -- '&'
 
 qmark :: Parser ()
-qmark = void $ word8 63
+qmark = void $ word8 63 -- '?'
 
 cr :: Parser ()
 cr = void $ word8 13
@@ -91,9 +92,12 @@ parseQueryFlag :: Parser Text
 parseQueryFlag = text
 
 parseQueryPFs :: Parser (QueryFlags, QueryParams)
-parseQueryPFs = qmark *> (partitionEithers <$> sepBy p ampersand)
+parseQueryPFs = qmark *> (partitionEithers <$> sepQueries)
+
+sepQueries :: Parser [Either Text (Text,Text)]
+sepQueries = sepBy' p ampersand
   where
-    p = (Left <$> parseQueryFlag) <|> (Right <$> parseQueryParam)
+    p = try (Left <$> (parseQueryFlag <* endOfInput)) <|> try (Right <$> parseQueryParam)
 
 parseDomain :: Parser [Text]
 parseDomain = sepEndBy text dot
