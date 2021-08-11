@@ -1,20 +1,26 @@
 {-# LANGUAGE TupleSections #-}
 module Titan.Parser where
 
-import Control.Applicative
-import Control.Monad
-
+import Control.Applicative ( Alternative((<|>)))
+import Control.Monad ( void )
 import Data.Attoparsec.ByteString
+    ( inClass,
+      satisfy,
+      string,
+      word8,
+      many1,
+      option,
+      sepBy',
+      try,
+      endOfInput,
+      Parser )
 import Data.Attoparsec.ByteString.Char8 (endOfLine)
-
-import Data.ByteString
+import Data.ByteString ( pack )
 import Data.Either (partitionEithers)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
-
-import GHC.Word
-
-import Titan.Types
+import GHC.Word ( Word8 )
+import Titan.Types ( Request(Request), QueryFlags, QueryParams )
 
 dot :: Parser ()
 dot = void $ word8 46
@@ -26,10 +32,10 @@ equal :: Parser ()
 equal = void $ word8 61
 
 ampersand :: Parser ()
-ampersand = void $ word8 38
+ampersand = void $ word8 38 -- '&'
 
 qmark :: Parser ()
-qmark = void $ word8 63
+qmark = void $ word8 63 -- '?'
 
 cr :: Parser ()
 cr = void $ word8 13
@@ -43,8 +49,25 @@ fslash = void $ word8 47
 alphaNum :: Parser Word8
 alphaNum = satisfy $ inClass "a-zA-Z0-9"
 
+plus :: Parser Word8
+plus = word8 43
+
+minus :: Parser Word8
+minus = word8 45
+
+plus2b :: Parser Word8
+plus2b = do
+  _ <- string "%2B"
+  pure 43
+
+plusAny :: Parser Word8
+plusAny = try plus <|> try plus2b
+
 text :: Parser Text
 text = decodeUtf8 . pack <$> many1 alphaNum
+
+textPlusMinus :: Parser Text
+textPlusMinus = decodeUtf8 . pack <$> many1 (try alphaNum <|> try plusAny <|> try minus)
 
 sepEndBy1 :: Alternative m => m a -> m sep -> m [a]
 sepEndBy1 p sep = (:) <$> p <*> ((sep *> sepEndBy p sep) <|> pure [])
@@ -60,7 +83,7 @@ parseScheme = do
   void fslash
 
 parsePath :: Parser [Text]
-parsePath = fslash *> sepEndBy text fslash
+parsePath = fslash *> sepEndBy textPlusMinus fslash
 
 parseQueryParam :: Parser (Text, Text)
 parseQueryParam = (,) <$> text <* equal <*> text
@@ -69,9 +92,12 @@ parseQueryFlag :: Parser Text
 parseQueryFlag = text
 
 parseQueryPFs :: Parser (QueryFlags, QueryParams)
-parseQueryPFs = qmark *> (partitionEithers <$> sepBy p ampersand)
+parseQueryPFs = qmark *> (partitionEithers <$> sepQueries)
+
+sepQueries :: Parser [Either Text (Text,Text)]
+sepQueries = sepBy' p ampersand
   where
-    p = (Left <$> parseQueryFlag) <|> (Right <$> parseQueryParam)
+    p = try (Left <$> (parseQueryFlag <* endOfInput)) <|> try (Right <$> parseQueryParam)
 
 parseDomain :: Parser [Text]
 parseDomain = sepEndBy text dot

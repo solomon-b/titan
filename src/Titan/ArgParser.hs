@@ -16,14 +16,16 @@ data Options = Options
   , _optServerCredentials  :: T.Credential
   , _optCACert             :: Maybe [SignedCertificate]
   }
+  deriving Show
 
 makeLenses ''Options
 
 parseArgs :: [String] -> IO (NS.HostName, Options)
 parseArgs args =
   case getOpt RequireOrder options args of
-    (actions, [hostname], _) ->
-      (,) <$> pure hostname <*> (foldl (>>=) (return defaultOptions) actions)
+    (actions, [hostname], _) -> do
+      opts <- foldl (>>=) (return defaultOptions) actions
+      pure (hostname, opts)
     (_, _, msgs) -> do
       pn <- getProgName
       let header = "Usage: " <> pn <> " [OPTIONS] HOSTNAME"

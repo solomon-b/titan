@@ -1,2 +1,4 @@
 /dist-newstyle/
 /*.pem
+*.lock
+/.stack-work/
