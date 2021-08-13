@@ -12,7 +12,6 @@ import Data.Attoparsec.ByteString
       option,
       sepBy',
       try,
-      many',
       endOfInput,
       Parser )
 import Data.Attoparsec.ByteString.Char8 (endOfLine)
