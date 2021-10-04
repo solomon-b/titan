@@ -92,10 +92,10 @@ parseQueryFlag :: Parser Text
 parseQueryFlag = text
 
 parseQueryPFs :: Parser (QueryFlags, QueryParams)
-parseQueryPFs = qmark *> (partitionEithers <$> sepQueries)
+parseQueryPFs = qmark *> (partitionEithers <$> sep)
 
-sepQueries :: Parser [Either Text (Text,Text)]
-sepQueries = sepBy' p ampersand
+sep :: Parser [Either Text (Text,Text)]
+sep = sepBy' p ampersand
   where
     p = try (Left <$> (parseQueryFlag <* endOfInput)) <|> try (Right <$> parseQueryParam)
 
